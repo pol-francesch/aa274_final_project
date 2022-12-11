@@ -1,7 +1,7 @@
 <launch>
   <include file="$(find turtlebot3_gazebo)/launch/turtlebot3_world.launch" />
 
-  <include file="$(find asl_turtlebot)/launch/root.launch">
+  <include file="$(find aa274_final_project)/launch/root.launch">
     <arg name="x_pos" default="0.0"/>
     <arg name="y_pos" default="0.0"/>
     <arg name="z_pos" default="0.0"/>

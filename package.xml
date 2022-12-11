@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>asl_turtlebot</name>
+  <name>aa274_final_project</name>
   <version>0.0.0</version>
-  <description>The asl_turtlebot package</description>
+  <description>The aa274_final_project package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->
@@ -43,9 +43,12 @@
   <build_depend>roscpp</build_depend>
   <build_depend>rospy</build_depend>
   <build_depend>std_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <!-- <build_depend>message_generation</build_depend> -->
   <run_depend>roscpp</run_depend>
   <run_depend>rospy</run_depend>
   <run_depend>std_msgs</run_depend>
+  <run_depend>geometry_msgs</run_depend>
   <run_depend>python-redis</run_depend>
   <run_depend>python-numpy</run_depend>
 

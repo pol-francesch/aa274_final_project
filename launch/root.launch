@@ -17,7 +17,7 @@
 
   <!-- ###### launch the robot and possible state publisher ############### -->
   <arg name="model" default="asl_turtlebot" doc="model type asl_turtlebot"/>
-  <param name="robot_description" command="$(find xacro)/xacro $(find asl_turtlebot)/urdf/$(arg model).urdf.xacro" if="$(eval '/' not in model)" />
+  <param name="robot_description" command="$(find xacro)/xacro $(find aa274_final_project)/urdf/$(arg model).urdf.xacro" if="$(eval '/' not in model)" />
   <param name="robot_description" command="$(find xacro)/xacro $(arg model)" unless="$(eval '/' not in model)" />
 
   <group if="$(arg publish_state)" >
@@ -31,7 +31,7 @@
     <!-- ######### select the world by short name or by path ############ -->
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
       <arg name="use_sim_time" value="true"/>
-      <arg name="world_name" value="$(find asl_turtlebot)/world/$(arg world).world" if="$(eval '/' not in world)" />
+      <arg name="world_name" value="$(find aa274_final_project)/world/$(arg world).world" if="$(eval '/' not in world)" />
       <arg name="world_name" value="$(arg world)" unless="$(eval '/' not in world)"/>
       <arg name="paused" value="false"/>
       <arg name="debug" value="false"/>
@@ -44,24 +44,24 @@
 
   <!-- ###################### launch the configured gmapping ############## -->
   <group if="$(arg gmapping)">
-    <include file="$(find asl_turtlebot)/launch/config/gmapping_config.launch" />
+    <include file="$(find aa274_final_project)/launch/config/gmapping_config.launch" />
   </group>
 
   <!-- ################ unconditonally useful scripts ##################### -->
-  <node pkg="asl_turtlebot" type="goal_commander.py" name="goal_commander" />
+  <node pkg="aa274_final_project" type="goal_commander.py" name="goal_commander" />
 
   <!-- ################ conditionally launched scripts #################### -->
   <group if="$(eval len(detector) > 0)">
-    <node pkg="asl_turtlebot" type="$(arg detector)"
+    <node pkg="aa274_final_project" type="$(arg detector)"
       name="turtlebot_detector" />
   </group>
   <group if="$(eval len(navigator) > 0)">
-    <node pkg="asl_turtlebot" type="$(arg navigator)" name="turtlebot_navigator" output="screen" />
+    <node pkg="aa274_final_project" type="$(arg navigator)" name="turtlebot_navigator" output="screen" />
   </group>
 
   <!-- ###################### conditionally launch rviz ################### -->
   <group if="$(eval len(rviz) > 0)">
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find asl_turtlebot)/rviz/$(arg rviz).rviz"/>
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find aa274_final_project)/rviz/$(arg rviz).rviz"/>
   </group>
 
 </launch>

@@ -3,7 +3,7 @@
   <arg name="mc" default="false" />
   <arg name="num_particles" default="1000" />
 
-  <include file="$(find asl_turtlebot)/launch/root.launch">
+  <include file="$(find aa274_final_project)/launch/root.launch">
     <arg name="world" value="maze" />
     <arg name="gmapping" value="false" />
     <arg name="x_pos" value="1.0" />
@@ -13,7 +13,7 @@
     <arg name="rviz" value="hw4_maze" />
   </include>
 
-  <node pkg="asl_turtlebot" type="localization.py" name="localization" output="screen" launch-prefix="bash -c 'sleep 1.0; $0 $@' ">
+  <node pkg="aa274_final_project" type="localization.py" name="localization" output="screen" launch-prefix="bash -c 'sleep 1.0; $0 $@' ">
     <param name="/mc" type="bool" value="$(arg mc)" />
     <param name="/num_particles" type="int" value="$(arg num_particles)" />
   </node>

@@ -1,7 +1,7 @@
 <launch>
   <arg name="sim" default="true"/>
 
-  <include file="$(find asl_turtlebot)/launch/root.launch">
+  <include file="$(find aa274_final_project)/launch/root.launch">
     <arg name="world" value="project_city" />
     <arg name="x_pos" default="3.15"/>
     <arg name="y_pos" default="1.6"/>

@@ -97,7 +97,7 @@ class Supervisor:
         self.trans_listener = tf.TransformListener()
 
         # If using rviz, we can subscribe to nav goal click
-        if self.params.rviz:
+        if self.params.rviz and False:
             rospy.Subscriber('/move_base_simple/goal', PoseStamped, self.rviz_goal_callback)
         else:
             self.x_g, self.y_g, self.theta_g = 1.5, -4., 0.
@@ -196,13 +196,11 @@ class Supervisor:
 
     def init_stop_sign(self):
         """ initiates a stop sign maneuver """
-
         self.stop_sign_start = rospy.get_rostime()
         self.mode = Mode.STOP
 
     def has_stopped(self):
         """ checks if stop sign maneuver is over """
-
         return self.mode == Mode.STOP and \
                rospy.get_rostime() - self.stop_sign_start > rospy.Duration.from_sec(self.params.stop_time)
 
@@ -247,8 +245,11 @@ class Supervisor:
         #       at the stop sign.
 
         if self.mode == Mode.IDLE:
-            # Send zero velocity
-            self.stay_idle()
+            if not self.close_to(self.x_g, self.y_g, self.theta_g):
+                self.mode = Mode.NAV
+            else:
+                # Send zero velocity
+                self.stay_idle()
 
         elif self.mode == Mode.POSE:
             # Moving towards a desired pose
@@ -259,11 +260,16 @@ class Supervisor:
 
         elif self.mode == Mode.STOP:
             # At a stop sign
-            self.nav_to_pose()
+            if self.has_stopped():
+                self.init_crossing()
 
         elif self.mode == Mode.CROSS:
             # Crossing an intersection
-            self.nav_to_pose()
+            if self.has_crossed():
+                self.mode = Mode.NAV
+                self.nav_to_pose()
+            else:
+                self.nav_to_pose()
 
         elif self.mode == Mode.NAV:
             if self.close_to(self.x_g, self.y_g, self.theta_g):

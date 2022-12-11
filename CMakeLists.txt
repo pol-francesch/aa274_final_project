@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(asl_turtlebot)
+project(aa274_final_project)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   message_generation
 	dynamic_reconfigure
+  geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -50,6 +51,7 @@ add_message_files(
  FILES
  DetectedObject.msg
  DetectedObjectList.msg
+#  FRS.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -70,6 +72,7 @@ add_message_files(
 generate_messages(
  DEPENDENCIES
  std_msgs
+ geometry_msgs
 )
 
 ################################################

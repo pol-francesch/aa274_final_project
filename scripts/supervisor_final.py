@@ -8,6 +8,7 @@ from gazebo_msgs.msg import ModelStates
 from geometry_msgs.msg import Twist, PoseArray, Pose2D, PoseStamped
 from std_msgs.msg import Float32MultiArray, String
 import tf
+import time
 
 class Mode(Enum):
     """State machine modes. Feel free to change."""
@@ -17,6 +18,18 @@ class Mode(Enum):
     CROSS = 4
     NAV = 5
     MANUAL = 6
+
+    # TODO Use same state for explore and rescue but pass in parameter for each list and 5s delay
+    SELECT_WAYPOINT = 7
+
+    
+    # EXPLORE = 7
+    # RESCUE = 8
+    # WAYPOINT = 9
+    # OBJECT = 10
+
+
+
 
 
 class SupervisorParams:
@@ -66,10 +79,43 @@ class Supervisor:
         self.y = 0
         self.theta = 0
 
-        # Goal state
-        self.x_g = 1.5
-        self.y_g = -4.0
-        self.theta_g = 0.0
+        # current phase
+        self.exploring = False
+        self.rescueing = True
+        # TODO when to change these flags?^
+
+        # objects selected by the TAs
+        self.selected_objects = {
+            "dog": [1,1,0],
+            "cat": [2,3,0],
+            "fox": [1,2,0]
+        }
+        # TODO: sort selected objects by closest distance
+
+
+
+
+        # TODO: take goal as an input from waypoint/object list
+        self.waypoints = [[1,0,0],[2,2,0],[1,4,0]]
+
+        # Explpre Goal state
+        waypoint = self.waypoints.pop(0)
+        self.x_g = waypoint[0]
+        self.y_g = waypoint[1]
+        self.theta_g = waypoint[2]
+
+
+        # switch to rescue mode
+        self.object_counter = 0
+        self.object_counter_threshold = len(self.selected_objects)
+
+        #for key,value in selected_objects.items():
+        value = list(self.selected_objects.values())[self.object_counter]
+        self.x_g = value[0]
+        self.y_g = value[1]
+        self.theta_g = value[2]
+        self.object_counter += 1
+
 
         # Current mode
         self.mode = Mode.NAV
@@ -97,10 +143,10 @@ class Supervisor:
         self.trans_listener = tf.TransformListener()
 
         # If using rviz, we can subscribe to nav goal click
-        if self.params.rviz:
+        if self.params.rviz and False:
             rospy.Subscriber('/move_base_simple/goal', PoseStamped, self.rviz_goal_callback)
         else:
-            self.x_g, self.y_g, self.theta_g = 1.5, -4., 0.
+            # self.x_g, self.y_g, self.theta_g = 1.5, -4., 0.
             self.mode = Mode.NAV
         
 
@@ -191,20 +237,18 @@ class Supervisor:
         """ checks if the robot is at a pose within some threshold """
 
         return abs(x - self.x) < self.params.pos_eps and \
-               abs(y - self.y) < self.params.pos_eps and \
-               abs(theta - self.theta) < self.params.theta_eps
+            abs(y - self.y) < self.params.pos_eps and \
+            abs(theta - self.theta) < self.params.theta_eps
 
     def init_stop_sign(self):
         """ initiates a stop sign maneuver """
-
         self.stop_sign_start = rospy.get_rostime()
         self.mode = Mode.STOP
 
     def has_stopped(self):
         """ checks if stop sign maneuver is over """
-
         return self.mode == Mode.STOP and \
-               rospy.get_rostime() - self.stop_sign_start > rospy.Duration.from_sec(self.params.stop_time)
+            rospy.get_rostime() - self.stop_sign_start > rospy.Duration.from_sec(self.params.stop_time)
 
     def init_crossing(self):
         """ initiates an intersection crossing maneuver """
@@ -216,10 +260,9 @@ class Supervisor:
         """ checks if crossing maneuver is over """
 
         return self.mode == Mode.CROSS and \
-               rospy.get_rostime() - self.cross_start > rospy.Duration.from_sec(self.params.crossing_time)
+            rospy.get_rostime() - self.cross_start > rospy.Duration.from_sec(self.params.crossing_time)
 
     ########## Code ends here ##########
-
 
     ########## STATE MACHINE LOOP ##########
 
@@ -240,41 +283,159 @@ class Supervisor:
         # logs the current mode
         if self.prev_mode != self.mode:
             rospy.loginfo("Current mode: %s", self.mode)
+            rospy.loginfo("x goal: %f", self.x_g)
+            rospy.loginfo("y goal: %f", self.y_g)
             self.prev_mode = self.mode
 
-        ########## Code starts here ##########
-        # TODO: Currently the state machine will just go to the pose without stopping
-        #       at the stop sign.
+        if self.exploring:
 
-        if self.mode == Mode.IDLE:
-            # Send zero velocity
-            self.stay_idle()
+                ########## Code starts here ##########
+                # TODO: Currently the state machine will just go to the pose without stopping
+                #       at the stop sign.
 
-        elif self.mode == Mode.POSE:
-            # Moving towards a desired pose
-            if self.close_to(self.x_g, self.y_g, self.theta_g):
-                self.mode = Mode.IDLE
+                if self.mode == Mode.IDLE:
+                    if not self.close_to(self.x_g, self.y_g, self.theta_g):
+                        self.mode = Mode.NAV
+                    else:
+                        
+                        # Send zero velocity
+                        self.stay_idle()
+                        #
+
+                elif self.mode == Mode.POSE:
+                    # Moving towards a desired pose
+                    if self.close_to(self.x_g, self.y_g, self.theta_g):
+                        # TODO move waypoint logic to go_to_pose()
+                        # self.mode = Mode.IDLE
+                        if not self.waypoints:
+                            # return to base
+                            self.x_g = 0
+                            self.y_g = 0
+                            self.theta_g = 0
+                            self.Mode = Mode.IDLE
+                        else:
+                            # Select next closest waypoint---------
+                            waypoint = self.waypoints.pop(0)
+                            self.x_g = waypoint[0]
+                            self.y_g = waypoint[1]
+                            self.theta_g = waypoint[2]
+                            self.Mode = Mode.NAV
+                            #self.mode = Mode.SELECT_WAYPOINT
+                    else:
+                        self.go_to_pose()
+
+                elif self.mode == Mode.STOP:
+                    # At a stop sign
+                    if self.has_stopped():
+                        self.init_crossing()
+
+                elif self.mode == Mode.CROSS:
+                    # Crossing an intersection
+                    if self.has_crossed():
+                        self.mode = Mode.NAV
+                        self.nav_to_pose()
+                    else:
+                        self.nav_to_pose()
+
+                elif self.mode == Mode.NAV:
+                    if self.close_to(self.x_g, self.y_g, self.theta_g):
+                        self.mode = Mode.POSE
+                    else:
+                        self.nav_to_pose()
+
+                elif self.mode == Mode.EXPLORE:
+                    self.mode = Mode.NAV
+
+                elif self.mode == Mode.RESCUE:
+                                
+                    self.mode = Mode.NAV
+
+                else:
+                    raise Exception("This mode is not supported: {}".format(str(self.mode)))
+
+                ############ Code ends here ############
+        elif self.rescueing:
+        
+            ########## Code starts here ##########
+            # TODO: Currently the state machine will just go to the pose without stopping
+            #       at the stop sign.
+
+
+
+
+
+            if self.mode == Mode.IDLE:
+                if not self.close_to(self.x_g, self.y_g, self.theta_g):
+                    self.mode = Mode.NAV
+                else:
+                    # Send zero velocity
+                    self.stay_idle()
+                    #
+
+            elif self.mode == Mode.POSE:
+                # Moving towards a desired pose
+                if self.close_to(self.x_g, self.y_g, self.theta_g):
+                    # TODO move waypoint logic to go_to_pose()
+                    # self.mode = Mode.IDLE
+                    if self.object_counter >= self.object_counter_threshold:
+                        # return to base
+                        self.x_g = 0
+                        self.y_g = 0
+                        self.theta_g = 0
+                        self.Mode = Mode.IDLE
+                    else:
+                        # pause for 5s
+                        time.sleep(5)
+                        print("post nap")
+
+                        # Select next closest waypoint---------
+                        value = list(self.selected_objects.values())[self.object_counter]
+                        print(self.object_counter)
+
+                        print(value)
+
+                        self.x_g = value[0]
+                        self.y_g = value[1]
+                        self.theta_g = value[2]
+                        self.object_counter += 1
+                        self.Mode = Mode.NAV
+                        #self.mode = Mode.SELECT_WAYPOINT
+                else:
+                    self.go_to_pose()
+
+            elif self.mode == Mode.STOP:
+                # At a stop sign
+                if self.has_stopped():
+                    self.init_crossing()
+
+            elif self.mode == Mode.CROSS:
+                # Crossing an intersection
+                if self.has_crossed():
+                    self.mode = Mode.NAV
+                    self.nav_to_pose()
+                else:
+                    self.nav_to_pose()
+
+            elif self.mode == Mode.NAV:
+                if self.close_to(self.x_g, self.y_g, self.theta_g):
+                    self.mode = Mode.POSE
+                else:
+                    self.nav_to_pose()
+
+            elif self.mode == Mode.EXPLORE:
+                self.mode = Mode.NAV
+
+            elif self.mode == Mode.RESCUE:
+                            
+                self.mode = Mode.NAV
+
             else:
-                self.go_to_pose()
+                raise Exception("This mode is not supported: {}".format(str(self.mode)))
 
-        elif self.mode == Mode.STOP:
-            # At a stop sign
-            self.nav_to_pose()
-
-        elif self.mode == Mode.CROSS:
-            # Crossing an intersection
-            self.nav_to_pose()
-
-        elif self.mode == Mode.NAV:
-            if self.close_to(self.x_g, self.y_g, self.theta_g):
-                self.mode = Mode.IDLE
-            else:
-                self.nav_to_pose()
-
+            ############ Code ends here ############
         else:
-            raise Exception("This mode is not supported: {}".format(str(self.mode)))
-
-        ############ Code ends here ############
+            #default
+            print("default")
 
     def run(self):
         rate = rospy.Rate(10) # 10 Hz
