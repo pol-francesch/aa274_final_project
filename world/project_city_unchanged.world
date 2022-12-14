@@ -1015,46 +1015,6 @@
       <pose frame=''>3.35 1.4 0.01 0.0 0.0 3.14159</pose>
     </model>
 
-    <actor name="reckless_human">
-      <link name="link">
-        <visual name="visual">
-          <geometry>
-            <mesh>
-              <uri>model://stop_sign/meshes/stop_sign.dae</uri>
-              <scale>.2 .2 .2</scale>
-            </mesh>
-          </geometry>
-        </visual>
-      </link>
-      <script>
-        <loop>true</loop>
-        <delay_start>0.000000</delay_start>
-        <auto_start>true</auto_start>
-                  <trajectory id="0" type="square">
-             <waypoint>
-                <time>0.0</time>
-                <pose>.5 .5 0 0 0 0</pose>
-             </waypoint>
-             <waypoint>
-                <time>2.0</time>
-                <pose>2.5 .5 0 0 0 0</pose>
-             </waypoint>
-             <waypoint>
-                <time>4.0</time>
-                <pose>2.5 2.5 0 0 0 0</pose>
-             </waypoint>
-             <waypoint>
-                <time>6.0</time>
-                <pose>.5 2.5 0 0 0 0</pose>
-             </waypoint>
-             <waypoint>
-                <time>8.0</time>
-                <pose>1.5 1.5 0 0 0 0</pose>
-             </waypoint>
-          </trajectory>
-        </script>
-      </actor>
-
 
     <gravity>0 0 -9.8</gravity>
     <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>

@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import rospy
 
 from utils.grids import DetOccupancyGrid2D, StochOccupancyGrid2D
 
@@ -42,37 +43,7 @@ class RRTStar():
         self.obstacles = obstacles
         self.free_motion_step = free_motion_step
 
-    def occupancy_grid_to_obs(self, occupancy):
-        """
-        Constructs the set of obstacles that RRT expects from
-        the set of obstacles that A* gives it.
-
-        Inputs:
-            occupancy: A DetOccupancyGrid2D object or similar
-        Output:
-            obstacles
-        """
-        # Occupancy grid is defined as corners of obstacles
-        # We need lines
-        # Assume rectangular obstacles
-        maze = []
-        for obstacle in occupancy.obstacles:
-            line1 = ((obstacle[0][0], obstacle[0][1]), ((obstacle[0][0], obstacle[1][1])))
-            line2 = ((obstacle[0][0], obstacle[0][1]), ((obstacle[1][0], obstacle[0][1])))
-            line3 = ((obstacle[1][0], obstacle[1][1]), ((obstacle[0][0], obstacle[1][1])))
-            line4 = ((obstacle[1][0], obstacle[1][1]), ((obstacle[1][0], obstacle[0][1])))
-            maze += [line1, line2, line3, line4]
-        
-        # Add in the edges (assuming (0,0) is at the bottom left corner)
-        edge1 = ((0,0), (0,occupancy.height))
-        edge2 = ((0,0), (occupancy.width, 0))
-        edge3 = ((occupancy.width, occupancy.height), (0,occupancy.height))
-        edge4 = ((occupancy.width, occupancy.height), (occupancy.width,0))
-        maze += [edge1, edge2, edge3, edge4]
-
-        return np.array(maze)
-
-    def solve(self, eps=1.0, max_iters=1000, goal_bias=0.05, search_radius=2.0, plot=False):
+    def solve(self, eps=1.0, max_iters=1000, goal_bias=0.05, search_radius=2.0, plot=False, shortcut=True):
         """
         Constructs an RRT rooted at self.x_init with the aim of producing a
         dynamically-feasible and obstacle-free trajectory from self.x_init
@@ -103,6 +74,8 @@ class RRTStar():
 
         # Draw out all the nodes
         while n < max_iters:
+            if n % 50 == 0:
+                rospy.loginfo("Completed " + str(n) + " out of " + str(max_iters))
             x_rand = self.sample_free(goal_bias, state_dim)
             x_nearest = self.find_nearest(V[0:n,:], x_rand)
             x_new, added_cost = self.steer_towards(x_nearest, x_rand, eps)
@@ -133,6 +106,10 @@ class RRTStar():
             success = True
             # Re-trace the path
             self.path = self.generate_path(V, P, goal_parent)
+        
+        if shortcut and success:
+            rospy.loginfo("Shortcutting")
+            self.shortcut_path()
         
         # Plot the path
         if plot:
@@ -350,6 +327,28 @@ class RRTStar():
         path.reverse()
 
         return np.array(path)
+    
+    def shortcut_path(self):
+        """
+        Iteratively removes nodes from solution path to find a shorter path
+        which is still collision-free.
+        Input:
+            None
+        Output:
+            None, but should modify self.path
+        """
+        ########## Code starts here ##########
+        rospy.loginfo(type(self.path))
+        success = False
+        while not success:
+            success = True
+            for n in range(0,self.path.shape[0]):
+                if (self.path[n,:] != self.x_init).all() and (self.path[n,:] != self.x_goal).all() and self.is_free_motion(self.obstacles, self.path[n-1,:], self.path[n+1,:]):
+                    self.path = np.delete(self.path, n, 0)
+                    success = False
+                    break
+
+        ########## Code ends here ##########
 
     def plot_problem(self):
         if isinstance(self.obstacles, DetOccupancyGrid2D):
@@ -367,3 +366,33 @@ class RRTStar():
     def plot_path(self, **kwargs):
         path = np.array(self.path)
         plt.plot(path[:,0], path[:,1], **kwargs)
+    
+    def occupancy_grid_to_obs(self, occupancy):
+        """
+        Constructs the set of obstacles that RRT expects from
+        the set of obstacles that A* gives it.
+
+        Inputs:
+            occupancy: A DetOccupancyGrid2D object or similar
+        Output:
+            obstacles
+        """
+        # Occupancy grid is defined as corners of obstacles
+        # We need lines
+        # Assume rectangular obstacles
+        maze = []
+        for obstacle in occupancy.obstacles:
+            line1 = ((obstacle[0][0], obstacle[0][1]), ((obstacle[0][0], obstacle[1][1])))
+            line2 = ((obstacle[0][0], obstacle[0][1]), ((obstacle[1][0], obstacle[0][1])))
+            line3 = ((obstacle[1][0], obstacle[1][1]), ((obstacle[0][0], obstacle[1][1])))
+            line4 = ((obstacle[1][0], obstacle[1][1]), ((obstacle[1][0], obstacle[0][1])))
+            maze += [line1, line2, line3, line4]
+        
+        # Add in the edges (assuming (0,0) is at the bottom left corner)
+        edge1 = ((0,0), (0,occupancy.height))
+        edge2 = ((0,0), (occupancy.width, 0))
+        edge3 = ((occupancy.width, occupancy.height), (0,occupancy.height))
+        edge4 = ((occupancy.width, occupancy.height), (occupancy.width,0))
+        maze += [edge1, edge2, edge3, edge4]
+
+        return np.array(maze)

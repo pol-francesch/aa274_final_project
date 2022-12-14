@@ -67,13 +67,13 @@ class Navigator:
         self.plan_start = [0.0, 0.0]
 
         # Robot limits
-        self.v_max = 0.2  # maximum velocity
-        self.om_max = 0.4  # maximum angular velocity
+        self.v_max = 0.1  # maximum velocity
+        self.om_max = 0.2  # maximum angular velocity
 
         self.v_des = 0.12  # desired cruising velocity
         self.theta_start_thresh = 0.05  # threshold in theta to start moving forward when path-following
         self.start_pos_thresh = (
-            0.2  # threshold to be far enough into the plan to recompute it
+            0.5  # threshold to be far enough into the plan to recompute it
         )
 
         # threshold at which navigator switches from trajectory to pose control
@@ -334,12 +334,12 @@ class Navigator:
         #     x_init,
         #     x_goal,
         #     self.occupancy,
-        #     free_motion_step=100
+        #     free_motion_step=50
         # )
 
         rospy.loginfo("Navigator: computing navigation plan")
         success = problem.solve()
-        # success = problem.solve(eps=3.0, max_iters=1000, goal_bias=0.05, search_radius=5.0, plot=False)
+        # success = problem.solve(eps=0.5, max_iters=1000, goal_bias=0.05, search_radius=5.0, plot=False, shortcut=True)
         if not success:
             rospy.loginfo("Planning failed")
             return
@@ -392,7 +392,7 @@ class Navigator:
 
         self.th_init = traj_new[0, 2]
         self.heading_controller.load_goal(self.th_init)
-
+        
         if not self.aligned():
             rospy.loginfo("Not aligned with start direction")
             self.switch_mode(Mode.ALIGN)
