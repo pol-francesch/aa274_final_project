@@ -9,7 +9,7 @@ import numpy as np
 from numpy import linalg
 from utils.utils import wrapToPi
 from utils.grids import StochOccupancyGrid2D
-from planners import AStar, compute_smoothed_traj, RRTStar
+from planners import AStar, compute_smoothed_traj
 import scipy.interpolate
 import matplotlib.pyplot as plt
 from controllers import PoseController, TrajectoryTracker, HeadingController
@@ -328,18 +328,9 @@ class Navigator:
             self.occupancy,
             self.plan_resolution,
         )
-        # problem = RRTStar(
-        #     state_min,
-        #     state_max,
-        #     x_init,
-        #     x_goal,
-        #     self.occupancy,
-        #     free_motion_step=50
-        # )
 
         rospy.loginfo("Navigator: computing navigation plan")
         success = problem.solve()
-        # success = problem.solve(eps=0.5, max_iters=1000, goal_bias=0.05, search_radius=5.0, plot=False, shortcut=True)
         if not success:
             rospy.loginfo("Planning failed")
             return
