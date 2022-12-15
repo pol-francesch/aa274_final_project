@@ -16,7 +16,7 @@ from controllers import PoseController, TrajectoryTracker, HeadingController
 from enum import Enum
 
 from dynamic_reconfigure.server import Server
-from aa274_final_project.cfg import NavigatorConfig
+from asl_turtlebot.cfg import NavigatorConfig
 
 # state machine modes, not all implemented
 class Mode(Enum):
@@ -58,7 +58,7 @@ class Navigator:
         self.occupancy_updated = False
 
         # plan parameters
-        self.plan_resolution = 0.05
+        self.plan_resolution = 0.1
         self.plan_horizon = 15
 
         # time when we started following the plan
@@ -73,13 +73,13 @@ class Navigator:
         self.v_des = 0.12  # desired cruising velocity
         self.theta_start_thresh = 0.05  # threshold in theta to start moving forward when path-following
         self.start_pos_thresh = (
-            0.5  # threshold to be far enough into the plan to recompute it
+            0.2  # threshold to be far enough into the plan to recompute it
         )
 
         # threshold at which navigator switches from trajectory to pose control
         self.near_thresh = 0.2
-        self.at_thresh = 0.1
-        self.at_thresh_theta = 0.1
+        self.at_thresh = 0.02
+        self.at_thresh_theta = 0.05
 
         # trajectory smoothing
         self.spline_alpha = 0.15
@@ -383,7 +383,7 @@ class Navigator:
 
         self.th_init = traj_new[0, 2]
         self.heading_controller.load_goal(self.th_init)
-        
+
         if not self.aligned():
             rospy.loginfo("Not aligned with start direction")
             self.switch_mode(Mode.ALIGN)

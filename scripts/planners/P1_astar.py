@@ -16,8 +16,8 @@ class AStar(object):
 
         self.closed_set = set()    # the set containing the states that have been visited
         self.open_set = set()      # the set containing the states that are condidate for future expension
-        self.est_cost_through = np.inf*np.ones((self.statespace_hi - self.statespace_lo)//self.resolution + 1)  # 2d map of the estimated cost from start to goal passing through state (often called f score)
-        self.cost_to_arrive = np.inf*np.ones((self.statespace_hi - self.statespace_lo)//self.resolution + 1)    # 2d map of the cost-to-arrive at state from start (often called g score)
+        self.est_cost_through = {} #np.inf*np.ones((self.statespace_hi - self.statespace_lo)//self.resolution + 1)  # 2d map of the estimated cost from start to goal passing through state (often called f score)
+        self.cost_to_arrive = {} #np.inf*np.ones((self.statespace_hi - self.statespace_lo)//self.resolution + 1)    # 2d map of the cost-to-arrive at state from start (often called g score)
         self.came_from = {}         # dictionary keeping track of each state's parent to reconstruct the path
 
         self.open_set.add(self.x_init)
@@ -28,9 +28,22 @@ class AStar(object):
 
     def set_init(self, x):
         self.x_init = self.snap_to_grid(x)
-
+    
     def set_goal(self, x):
         self.x_goal = self.snap_to_grid(x)
+    
+    def reset(self):
+        self.closed_set = set()    # the set containing the states that have been visited
+        self.open_set = set()      # the set containing the states that are condidate for future expension
+        self.est_cost_through = {} #np.inf*np.ones((self.statespace_hi - self.statespace_lo)//self.resolution + 1)  # 2d map of the estimated cost from start to goal passing through state (often called f score)
+        self.cost_to_arrive = {} #np.inf*np.ones((self.statespace_hi - self.statespace_lo)//self.resolution + 1)    # 2d map of the cost-to-arrive at state from start (often called g score)
+        self.came_from = {}         # dictionary keeping track of each state's parent to reconstruct the path
+
+        self.open_set.add(self.x_init)
+        self.cost_to_arrive[self.x_init] = 0
+        self.est_cost_through[self.x_init] = self.distance(self.x_init,self.x_goal)
+
+        self.path = None        # the final path as a list of states
 
     def is_free(self, x):
         """
@@ -70,7 +83,7 @@ class AStar(object):
         Output:
             A tuple that represents the closest point to x on the discrete state grid
         """
-        return (self.resolution*round(x[0]/self.resolution), self.resolution*round(x[1]/self.resolution))
+        return (round(self.resolution*round(x[0]/self.resolution),6), round(self.resolution*round(x[1]/self.resolution),6))
 
     def get_neighbors(self, x):
         """
@@ -93,18 +106,13 @@ class AStar(object):
         """
         neighbors = []
         ########## Code starts here ##########
-        all_neighbors = [self.snap_to_grid(x + np.array((self.resolution, 0))),
-                         self.snap_to_grid(x + np.array((-self.resolution, 0))),
-                         self.snap_to_grid(x + np.array((0, self.resolution))),
-                         self.snap_to_grid(x + np.array((0, -self.resolution))),
-                         self.snap_to_grid(x + np.sqrt(2)/2 * np.array((self.resolution, self.resolution))),
-                         self.snap_to_grid(x + np.sqrt(2)/2 * np.array((-self.resolution, self.resolution))),
-                         self.snap_to_grid(x + np.sqrt(2)/2 * np.array((self.resolution, -self.resolution))),
-                         self.snap_to_grid(x + np.sqrt(2)/2 * np.array((-self.resolution, -self.resolution)))]
-        
-        for neighbor in all_neighbors:
-            if self.is_free(neighbor):
-                neighbors.append(neighbor)
+        for i in range (-1,2):
+            for j in range(-1,2):
+                if not(i==0 and j == 0):
+                    x_n = (x[0]+i*self.resolution,x[1]+j*self.resolution)
+                    x_n = self.snap_to_grid(x_n)
+                    if self.is_free(x_n):
+                        neighbors.append(x_n)
         ########## Code ends here ##########
         return neighbors
 
@@ -132,7 +140,6 @@ class AStar(object):
     def plot_path(self, fig_num=0, show_init_label=True):
         """Plots the path found in self.path and the obstacles"""
         if not self.path:
-            print("No path found")
             return
 
         self.occupancy.plot(fig_num)
