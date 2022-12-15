@@ -67,17 +67,17 @@ class Navigator:
         self.plan_start = [0.0, 0.0]
 
         # Robot limits
-        self.v_max = 0.2  # maximum velocity
+        self.v_max = 0.3  # maximum velocity
         self.om_max = 0.4  # maximum angular velocity
 
-        self.v_des = 0.12  # desired cruising velocity
+        self.v_des = 0.2  # desired cruising velocity
         self.theta_start_thresh = 0.05  # threshold in theta to start moving forward when path-following
         self.start_pos_thresh = (
             0.5  # threshold to be far enough into the plan to recompute it
         )
 
         # threshold at which navigator switches from trajectory to pose control
-        self.near_thresh = 0.2
+        self.near_thresh = 0.3
         self.at_thresh = 0.1
         self.at_thresh_theta = 0.1
 

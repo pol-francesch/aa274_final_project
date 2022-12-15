@@ -8,12 +8,15 @@ from aa274_final_project.msg import DetectedObject
 from nav_msgs.msg import OccupancyGrid, MapMetaData
 from gazebo_msgs.msg import ModelStates
 from geometry_msgs.msg import Twist, Pose2D, PoseStamped
+from visualization_msgs.msg import Marker
 import tf
 import time
 from enum import Enum
 import numpy as np
 from utils.grids import StochOccupancyGrid2D
 from planners import solve_tsp_from_map
+from std_msgs.msg import Bool
+from utils import wrapToPi
 
 class Mode(Enum):
     """State machine modes. Feel free to change."""
@@ -21,6 +24,7 @@ class Mode(Enum):
     NAV = 2
     MANUAL= 3
     SELECT_WAYPOINT = 4
+    STOP = 5
 
 class SupervisorParams:
 
@@ -84,14 +88,20 @@ class Supervisor:
         # Waypoints
         # self.waypoints = [[3.5,2.6,0],[2.3,2.4,0],[2.3,0.2,0],[0.5,0.1,0],[0.3,2,0]]
         # self.waypoints = [[3.5,2.6,0],[3.5,0.2,0]]
-        self.waypoints = [[3.5,2.8,np.pi/2.], 
+        self.waypoints = [[3.5, 2.8, np.pi/2.], # Giraffe
                           [2.45,2.8,np.pi],
-                          [2.45,2.0,-np.pi/2],
-                          [2.45,1.0,np.pi],
-                          [2.45,0.2,-np.pi/2]]
+                          [2.45,2.0,-np.pi/2], 
+                          [2.45,1.0,np.pi], # Elephant
+                          [2.45,0.2,-np.pi/2],
+                          [3.4, 0.1,-3*np.pi/4],
+                          [3.4,-1.1,np.pi],
+                          [2,-1.2,-np.pi/2],    # bear
+                          [.4,-1.0,np.pi/4], # Exiting weird area
+                          [.3,0.32,np.pi], # Zebra
+                          [.3,2.0,np.pi]] # cow
 
         # Objects
-        self.valid_objects = ['cow','zebra','giraffe','elephant']
+        self.valid_objects = ['cow','zebra','giraffe','elephant', 'bear']
         self.detected_objects = {}
 
         # Objects selected by TAs
@@ -105,6 +115,8 @@ class Supervisor:
         self.map_probs = []
         self.occupancy = None
 
+        self.should_stop = False
+
         ########## PUBLISHERS ##########
 
         # Command navigator for controller
@@ -113,6 +125,13 @@ class Supervisor:
         # Command vel (used for idling)
         self.cmd_vel_publisher = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
 
+        # For people stuff
+        self.person_pub = rospy.Publisher('/person_pub',Pose2D,queue_size=10)
+
+        # Markers
+        # self.animal_marker_pubs = {}
+        self.animal_marker_pub = rospy.Publisher('/animal_marker', Marker, queue_size=10)
+
         ########## SUBSCRIBERS ##########
         # Map
         rospy.Subscriber("/map", OccupancyGrid, self.map_callback)
@@ -120,11 +139,14 @@ class Supervisor:
 
         # Camera
         rospy.Subscriber('/detector/person', DetectedObject, self.person_callback)
+        rospy.Subscriber('/collides',Bool,self.collide_cb)
 
         rospy.Subscriber('/detector/giraffe', DetectedObject, self.add_object_to_dict)
         rospy.Subscriber('/detector/elephant', DetectedObject, self.add_object_to_dict)
         rospy.Subscriber('/detector/cow', DetectedObject, self.add_object_to_dict)
         rospy.Subscriber('/detector/zebra', DetectedObject, self.add_object_to_dict)
+        rospy.Subscriber('/detector/bear', DetectedObject, self.add_object_to_dict)
+
 
         # High-level navigation pose
         rospy.Subscriber('/nav_pose', Pose2D, self.nav_pose_callback)
@@ -182,25 +204,37 @@ class Supervisor:
         self.mode = Mode.NAV
 
     def person_callback(self, msg):
-        # TODO: @Izzie
-        pass
+        # I wanna know where the robot is when it sees the person
+        loc = Pose2D()
+        loc.x = self.x
+        loc.y = self.y
+        loc.theta = self.theta
+        self.person_pub.publish(loc)
+
+    def collide_cb(self,msg):
+        if msg.data==True:
+            rospy.loginfo("Potential collision detected. Stopping.")
+            self.mode = Mode.STOP
 
     def add_object_to_dict(self, msg):
         '''Adds arbitrary object that was detecetd to our objects dictionary'''
         conf = msg.confidence
         name = msg.name
+        distance = float(msg.distance)
 
         if conf > 0.7 and not self.rescuing:
             if name in self.detected_objects:
                 old_confidence = self.detected_objects[name]["confidence"]
 
                 if old_confidence < conf:
-                    self.detected_objects[name] = {"pose": [self.x,self.y,self.theta], "confidence": conf}
+                    self.detected_objects[name] = {"pose": [self.x,self.y,self.theta], "confidence": conf, "distance": distance}
                     rospy.loginfo("Updated the pose of {} due to higher confidence ({})".format(name,round(conf,6)))
+                    self.publish_marker(name)
             else:      
-                self.detected_objects[name] = {"pose": [self.x,self.y,self.theta], "confidence": conf}
+                self.detected_objects[name] = {"pose": [self.x,self.y,self.theta], "confidence": conf, "distance": distance}
                 rospy.loginfo('AYO WE ADDED A: {} ({})'.format(name,round(conf,6)))
-
+                self.publish_marker(name)
+            
     def map_md_callback(self, msg):
         """
         receives maps meta data and stores it
@@ -233,8 +267,45 @@ class Supervisor:
 
     ########## STATE MACHINE ACTIONS ##########
 
+    def publish_marker(self, name):
+        '''Publishes marker at the object location based on the name given'''
+
+        if name not in self.detected_objects or name not in self.valid_objects:
+            return
+        
+        # if name not in self.animal_marker_pubs:
+        #     self.animal_marker_pubs[name] = rospy.Publisher('marker/'+str(name), Marker, queue_size=10)
+        
+        marker = Marker()
+
+        marker.header.frame_id = "map"
+        marker.header.stamp = rospy.Time()
+        marker.id = self.valid_objects.index(name)
+
+        marker.type = 2 # sphere
+
+        marker.pose.position.x = self.detected_objects[name]['pose'][0] + self.detected_objects[name]['distance']*np.cos(self.theta)
+        marker.pose.position.y = self.detected_objects[name]['pose'][1] + self.detected_objects[name]['distance']*np.sin(self.theta)
+        marker.pose.position.z = 1
+
+        marker.pose.orientation.x = 0.0
+        marker.pose.orientation.y = 0.0
+        marker.pose.orientation.z = 0.0
+        marker.pose.orientation.w = 1.0
+
+        marker.scale.x = 0.3
+        marker.scale.y = 0.3
+        marker.scale.z = 0.3
+
+        marker.color.a = 1.0 # Don't forget to set the alpha!
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+
+        self.animal_marker_pub.publish(marker)
+
     def nav_to_pose(self):
-        """ sends the current desired pose to the naviagtor """
+        """ sends the current desired pose to the navigator """
 
         nav_g_msg = Pose2D()
         nav_g_msg.x = self.x_g
@@ -252,13 +323,16 @@ class Supervisor:
     def close_to(self, x, y, theta):
         """ checks if the robot is at a pose within some threshold """
 
-        return abs(x - self.x) < self.params.pos_eps and \
-               abs(y - self.y) < self.params.pos_eps and \
-               abs(theta - self.theta) < self.params.theta_eps
+        # return abs(x - self.x) < self.params.pos_eps and \
+        #        abs(y - self.y) < self.params.pos_eps and \
+        #        abs(wrapToPi(theta - self.theta)) < self.params.theta_eps
+
+        return np.linalg.norm(np.array([self.x - x, self.y - y])) < self.params.pos_eps and \
+               abs(wrapToPi(theta - self.theta)) < self.params.theta_eps
 
     def request_publisher(self):
         '''Asks for TA input'''
-        print("\nHere are all the objects detected during exploration", self.detected_objects.keys())
+        print("\nHere are all the objects detected during exploration", list(self.detected_objects))
         print("Please select the objects you want to rescue one by one.")
         print("Type none when you're done.\n")
 
@@ -281,6 +355,7 @@ class Supervisor:
 
         # Run TSP
         if len(self.selected_objects) > 1:
+            rospy.loginfo("Solving the traveling zookeeper problem to determine the best rescue operation.")
             # Get just the position
             objects_pos = []
             for val in self.selected_objects.values():
@@ -336,13 +411,13 @@ class Supervisor:
 
         # Set new waypoint
         else:
-            waypoint = self.waypoints.pop(0)
-            self.x_g = waypoint[0]
-            self.y_g = waypoint[1]
-            self.theta_g = waypoint[2]            
+            self.waypoint = self.waypoints.pop(0)
+            self.x_g = self.waypoint[0]
+            self.y_g = self.waypoint[1]
+            self.theta_g = self.waypoint[2]            
 
             self.mode = Mode.NAV
-            rospy.loginfo("Setting a new waypoint: ({}, {}, {})".format(round(waypoint[0],6), round(waypoint[1],6), round(waypoint[2],6)))
+            rospy.loginfo("Setting a new waypoint: ({}, {}, {})".format(round(self.waypoint[0],6), round(self.waypoint[1],6), round(self.waypoint[2],6)))
 
     ########## STATE MACHINE LOOP ##########
 
@@ -380,11 +455,10 @@ class Supervisor:
                 # the robot will try to rescue an animal when it's still home
                 print()
                 rospy.loginfo("Rescuing the cute animal...")
-                rospy.sleep(4.)
+                rospy.sleep(5.)
                 rospy.loginfo("Animal rescued!")
                 print()
                 # TODO: Fix small bug where this runs when we reach the home after we've collected all the animals
-            
             self.set_new_waypoint()
 
         elif self.mode == Mode.NAV:
@@ -394,6 +468,19 @@ class Supervisor:
                 time.sleep(3) # just wait for a second so robot is stopped and we have a new map
             else:
                 self.nav_to_pose()
+
+        elif self.mode == Mode.STOP:
+            # print("Avoiding collision...")
+            self.stay_idle()
+            nav_g_msg = Pose2D()
+            nav_g_msg.x = self.x
+            nav_g_msg.y = self.y
+            nav_g_msg.theta = self.theta
+            self.nav_goal_publisher.publish(nav_g_msg)
+            time.sleep(3)
+            # Follow the same waypoint as before
+            rospy.loginfo("We've probably waited enough time to avoid a collision... Time to move again.")
+            self.mode = Mode.NAV
 
         else:
             raise Exception("This mode is not supported: {}".format(str(self.mode)))

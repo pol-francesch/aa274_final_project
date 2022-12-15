@@ -5,6 +5,7 @@ import rospy
 from geometry_msgs.msg import Point32, Polygon, PolygonStamped
 from nav_msgs.msg import Path
 from aa274_final_project.msg import FRS
+from std_msgs.msg import Bool
 
 class robot_FRS:
     """
@@ -15,8 +16,9 @@ class robot_FRS:
 
     def __init__(self):
         rospy.init_node("robot_FRS",anonymous=True)
-        self.v_max = .2
-        self.error = .2
+        self.start = rospy.get_rostime().to_sec()
+        self.v_max = .3
+        self.error = .1
         self.traj = np.zeros(2)
         self.ers = np.zeros((4,2))
         self.robotfrs = FRS()
@@ -26,13 +28,35 @@ class robot_FRS:
         self.FRS_view_pub2 = rospy.Publisher("/frs_view2",PolygonStamped,queue_size=10)
         self.FRS_view_pub3 = rospy.Publisher("/frs_view3",PolygonStamped,queue_size=10)
         self.ERS_pub = rospy.Publisher("/ers",PolygonStamped,queue_size=10)
+        self.collision_pub = rospy.Publisher("/collides",Bool,queue_size=10)
         rospy.Subscriber("/cmd_smoothed_path",Path,self.traj_callback)
+        rospy.Subscriber("/ors",FRS,self.ors_callback)
     
     def traj_callback(self, smooth_traj):
         self.traj = np.zeros((len(smooth_traj.poses),2))
         for i in range(len(smooth_traj.poses)):
             self.traj[i,0] = smooth_traj.poses[i].pose.position.x
             self.traj[i,1] = smooth_traj.poses[i].pose.position.y
+        self.calc_FRS()
+        self.start = rospy.get_rostime().to_sec()
+
+    def ors_callback(self, ORS):
+        # align times between reachable sets
+        idx = int((rospy.get_rostime().to_sec()-self.start)*10+1)
+        poly = ORS.polygons
+        collision = False
+        for t in range(len(poly)):
+            if idx+t > len(self.robotfrs.polygons)-1:
+                break
+            frs_i = self.robotfrs.polygons[idx+t].polygon.points
+            x_low = poly[t].polygon.points[2].x
+            x_high = poly[t].polygon.points[0].x
+            y_low = poly[t].polygon.points[2].y
+            y_high = poly[t].polygon.points[0].y
+            for pt in frs_i:
+                if pt.x > x_low and pt.x < x_high and pt.y > y_low and pt.y < y_high:
+                    collision = True
+        self.collision_pub.publish(collision)
 
     def calc_ERS(self):
         # center is 0,0
@@ -63,14 +87,14 @@ class robot_FRS:
 
     def view_FRS(self):
         self.FRS_view_pub1.publish(self.robotfrs.polygons[0])
-        self.FRS_view_pub2.publish(self.robotfrs.polygons[len(self.robotfrs.polygons)//2])
-        self.FRS_view_pub3.publish(self.robotfrs.polygons[-1])
+        self.FRS_view_pub2.publish(self.robotfrs.polygons[5])
+        self.FRS_view_pub3.publish(self.robotfrs.polygons[10])
 
-    def run(self,vis=True):
+    def run(self):
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
-            self.calc_FRS()
-            if vis:
+            #self.calc_FRS()
+            if len(self.robotfrs.polygons) > 0:
                 self.view_FRS()
             rate.sleep()
 

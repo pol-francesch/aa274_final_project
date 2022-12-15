@@ -126,7 +126,9 @@ Visualization Manager:
       Visibility:
         Grid: true
         Map: true
+        Marker: true
         Path: true
+        Polygon: true
         TF: true
         Value: true
       Zoom Factor: 1
@@ -153,6 +155,68 @@ Visualization Manager:
       Shaft Length: 0.10000000149011612
       Topic: /cmd_smoothed_path
       Unreliable: false
+      Value: true
+    - Alpha: 0.8999999761581421
+      Class: rviz/Polygon
+      Color: 25; 255; 0
+      Enabled: true
+      Name: Polygon
+      Queue Size: 10
+      Topic: /frs_view1
+      Unreliable: false
+      Value: true
+    - Alpha: 0.5
+      Class: rviz/Polygon
+      Color: 25; 255; 0
+      Enabled: true
+      Name: Polygon
+      Queue Size: 10
+      Topic: /frs_view2
+      Unreliable: false
+      Value: true
+    - Alpha: 0.25
+      Class: rviz/Polygon
+      Color: 25; 255; 0
+      Enabled: true
+      Name: Polygon
+      Queue Size: 10
+      Topic: /frs_view3
+      Unreliable: false
+      Value: true
+    - Alpha: 0.8999999761581421
+      Class: rviz/Polygon
+      Color: 255; 255; 0
+      Enabled: true
+      Name: Polygon
+      Queue Size: 10
+      Topic: /ors_view1
+      Unreliable: false
+      Value: true
+    - Alpha: 0.5
+      Class: rviz/Polygon
+      Color: 255; 255; 0
+      Enabled: true
+      Name: Polygon
+      Queue Size: 10
+      Topic: /ors_view2
+      Unreliable: false
+      Value: true
+    - Alpha: 0.25
+      Class: rviz/Polygon
+      Color: 255; 255; 0
+      Enabled: true
+      Name: Polygon
+      Queue Size: 10
+      Topic: /ors_view3
+      Unreliable: false
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /animal_marker
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
       Value: true
   Enabled: true
   Global Options:
@@ -214,5 +278,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1542
-  X: 286
-  Y: 279
+  X: 269
+  Y: 29

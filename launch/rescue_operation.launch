@@ -1,14 +1,16 @@
 <launch>
-  <arg name="use_tf" default="false"/>
+  <arg name="use_tf" default="true"/>
   <rosparam param="use_tf" subst_value="true">$(arg use_tf)</rosparam>
   <include file="$(find aa274_final_project)/launch/root.launch">
     <arg name="x_pos" default="3.0" />
     <arg name="y_pos" default="2.0" />
     <arg name="z_pos" default="0.0" />
     <arg name="rviz" default="signs" />
-    <arg name="gui" value="false" />
-    <arg name="world" default="smooth_walls" />
+    <arg name="gui" value="true" />
+    <arg name="world" default="final_project2" />
     <arg name="detector" default="detector_mobilenet.py" />
   </include>
+  <node pkg="aa274_final_project" type="robot_FRS.py" name="robot_FRS" />
+  <node pkg="aa274_final_project" type="human_FRS.py" name="human_FRS" />
   <!-- <node pkg="aa274_final_project" type="navigator.py" name="turtlebot_navigator" /> -->
 </launch>
