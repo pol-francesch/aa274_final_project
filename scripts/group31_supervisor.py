@@ -315,10 +315,16 @@ class Supervisor:
         self.nav_goal_publisher.publish(nav_g_msg)
 
     def stay_idle(self):
-        """ sends zero velocity to stay put """
+        """ sends zero velocity and goal to stay put """
 
         vel_g_msg = Twist()
         self.cmd_vel_publisher.publish(vel_g_msg)
+
+        nav_g_msg = Pose2D()
+        nav_g_msg.x = self.x
+        nav_g_msg.y = self.y
+        nav_g_msg.theta = self.theta
+        self.nav_goal_publisher.publish(nav_g_msg)
     
     def close_to(self, x, y, theta):
         """ checks if the robot is at a pose within some threshold """
@@ -472,11 +478,6 @@ class Supervisor:
         elif self.mode == Mode.STOP:
             # print("Avoiding collision...")
             self.stay_idle()
-            nav_g_msg = Pose2D()
-            nav_g_msg.x = self.x
-            nav_g_msg.y = self.y
-            nav_g_msg.theta = self.theta
-            self.nav_goal_publisher.publish(nav_g_msg)
             time.sleep(3)
             # Follow the same waypoint as before
             rospy.loginfo("We've probably waited enough time to avoid a collision... Time to move again.")

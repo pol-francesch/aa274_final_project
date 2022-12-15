@@ -27,7 +27,7 @@ class robot_FRS:
         self.FRS_view_pub1 = rospy.Publisher("/frs_view1",PolygonStamped,queue_size=10)
         self.FRS_view_pub2 = rospy.Publisher("/frs_view2",PolygonStamped,queue_size=10)
         self.FRS_view_pub3 = rospy.Publisher("/frs_view3",PolygonStamped,queue_size=10)
-        self.ERS_pub = rospy.Publisher("/ers",PolygonStamped,queue_size=10)
+        # self.ERS_pub = rospy.Publisher("/ers",PolygonStamped,queue_size=10)
         self.collision_pub = rospy.Publisher("/collides",Bool,queue_size=10)
         rospy.Subscriber("/cmd_smoothed_path",Path,self.traj_callback)
         rospy.Subscriber("/ors",FRS,self.ors_callback)
@@ -66,11 +66,11 @@ class robot_FRS:
         beta_gen = np.vstack((gen*self.error,gen*-self.error))
         for i in range(4):
             self.ers[i,:] = beta_gen[i//2*2]+beta_gen[(i+1)//2%2*2+1]
-        data = PolygonStamped()
-        data.header.frame_id = "map"
-        for pt in self.ers:
-            data.polygon.points.append(Point32(pt[0],pt[1],0))
-        self.ERS_pub.publish(data)
+        # data = PolygonStamped()
+        # data.header.frame_id = "map"
+        # for pt in self.ers:
+        #     data.polygon.points.append(Point32(pt[0],pt[1],0))
+        # self.ERS_pub.publish(data)
     
     def calc_FRS(self):
         self.calc_ERS()
@@ -87,8 +87,8 @@ class robot_FRS:
 
     def view_FRS(self):
         self.FRS_view_pub1.publish(self.robotfrs.polygons[0])
-        self.FRS_view_pub2.publish(self.robotfrs.polygons[5])
-        self.FRS_view_pub3.publish(self.robotfrs.polygons[10])
+        self.FRS_view_pub2.publish(self.robotfrs.polygons[len(self.robotfrs.polygons)//2])
+        self.FRS_view_pub3.publish(self.robotfrs.polygons[-1])
 
     def run(self):
         rate = rospy.Rate(10)
